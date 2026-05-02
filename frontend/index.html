@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SecureDep</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:       #0C0C0F;
+  --surface:  #111116;
+  --surface2: #18181F;
+  --surface3: #1E1E28;
+  --border:   #252530;
+  --border2:  #2E2E3C;
+  --blue:     #4B8BFF;
+  --blue-dim: #1E2D4A;
+  --cyan:     #00D4C8;
+  --green:    #00C97A;
+  --orange:   #FF8A3D;
+  --red:      #FF4560;
+  --yellow:   #FFD166;
+  --purple:   #9B72FF;
+  --text:     #E8E8F0;
+  --text2:    #9090A8;
+  --text3:    #555568;
+  --mono:     'Space Mono', monospace;
+  --sans:     'DM Sans', sans-serif;
+  --r:        8px;
+  --r2:       12px;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5}
+#root{display:flex;height:100vh;overflow:hidden}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:220px;flex-shrink:0;background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:0;overflow:hidden;
+}
+.sidebar-logo{
+  padding:20px 20px 16px;border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:13px;font-weight:700;
+  color:var(--text);letter-spacing:-0.5px;display:flex;align-items:center;gap:10px;
+}
+.logo-icon{
+  width:28px;height:28px;background:var(--blue);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:#fff;flex-shrink:0;
+}
+.sidebar-nav{flex:1;padding:12px 10px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.nav-btn{
+  width:100%;display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:var(--r);border:none;background:none;
+  color:var(--text2);font-family:var(--sans);font-size:13px;font-weight:500;
+  cursor:pointer;text-align:left;transition:all .15s;
+}
+.nav-btn:hover{background:var(--surface2);color:var(--text)}
+.nav-btn.active{background:var(--blue-dim);color:var(--blue)}
+.nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.sidebar-bottom{padding:12px 10px;border-top:1px solid var(--border)}
+
+/* ── Status dot (watcher) ── */
+.watch-status{
+  display:flex;align-items:center;gap:8px;padding:10px 10px;
+  border-radius:var(--r);background:var(--surface2);border:1px solid var(--border);
+  font-size:11px;color:var(--text2);font-family:var(--mono);cursor:pointer;
+  transition:border-color .15s;
+}
+.watch-status:hover{border-color:var(--border2)}
+.status-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .4s;
+}
+.status-dot.clean{background:var(--green)}
+.status-dot.warn{background:var(--yellow)}
+.status-dot.danger{background:var(--red)}
+.status-dot.scanning{background:var(--blue);animation:pulse 1s ease-in-out infinite}
+.status-dot.idle{background:var(--text3)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+.watch-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{
+  height:52px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 24px;gap:16px;
+}
+.topbar-title{font-size:14px;font-weight:700;color:var(--text);flex:1}
+.topbar-sub{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.content{flex:1;overflow-y:auto;padding:24px}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;padding:0 16px;height:36px;
+  border-radius:var(--r);border:none;font-family:var(--sans);font-size:13px;
+  font-weight:500;cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover:not(:disabled){background:#3A7AEE}
+.btn-ghost{background:var(--surface2);color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover:not(:disabled){background:var(--surface3);color:var(--text)}
+.btn-danger{background:rgba(255,69,96,.15);color:var(--red);border:1px solid rgba(255,69,96,.25)}
+.btn-danger:hover:not(:disabled){background:rgba(255,69,96,.25)}
+.btn-sm{height:28px;padding:0 12px;font-size:12px}
+
+/* ── Input ── */
+.input{
+  background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);
+  padding:0 14px;height:38px;color:var(--text);font-family:var(--mono);font-size:12px;
+  outline:none;transition:border-color .15s;width:100%;
+}
+.input:focus{border-color:var(--blue)}
+.input::placeholder{color:var(--text3)}
+
+/* ── Severity chips ── */
+.chip{
+  display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;
+  font-size:10px;font-weight:700;font-family:var(--mono);letter-spacing:.05em;
+}
+.chip-CRITICAL{background:rgba(255,69,96,.15);color:var(--red)}
+.chip-HIGH{background:rgba(255,138,61,.15);color:var(--orange)}
+.chip-MEDIUM{background:rgba(255,209,102,.15);color:var(--yellow)}
+.chip-LOW{background:rgba(0,201,122,.15);color:var(--green)}
+.chip-tool{background:var(--surface3);color:var(--text2);border:1px solid var(--border2)}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:20px}
+.card-sm{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px}
+
+/* ── Stat cards ── */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
+  padding:18px;position:relative;overflow:hidden;cursor:default;
+  transition:border-color .15s;
+}
+.stat-card:hover{border-color:var(--border2)}
+.stat-top-line{position:absolute;top:0;left:0;right:0;height:2px}
+.stat-num{font-size:36px;font-weight:700;font-family:var(--mono);line-height:1.1}
+.stat-label{font-size:10px;font-weight:700;color:var(--text2);margin-top:4px;letter-spacing:.08em;text-transform:uppercase}
+.stat-sub{font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--mono)}
+
+/* ── Table ── */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden}
+.table-header{
+  display:flex;align-items:center;padding:14px 16px;
+  border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;
+}
+.table-header-title{font-size:13px;font-weight:700;color:var(--text);flex:1}
+table{width:100%;border-collapse:collapse}
+thead th{
+  padding:10px 14px;text-align:left;font-size:10px;font-weight:700;
+  color:var(--text3);text-transform:uppercase;letter-spacing:.07em;
+  border-bottom:1px solid var(--border);cursor:pointer;user-select:none;
+  white-space:nowrap;
+}
+thead th:hover{color:var(--text2)}
+tbody tr{cursor:pointer;border-bottom:1px solid rgba(37,37,48,.6);transition:background .1s}
+tbody tr:hover{background:rgba(75,139,255,.04)}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:11px 14px;font-size:12px;vertical-align:middle}
+.td-type{font-weight:600;max-width:180px}
+.td-file{font-family:var(--mono);color:var(--text2);font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.td-line{color:var(--blue);font-family:var(--mono);font-size:11px}
+.suppressed-row{opacity:.4}
+
+/* ── Filter chips ── */
+.filter-row{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{
+  padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;
+  cursor:pointer;border:1px solid var(--border2);background:var(--surface2);
+  color:var(--text2);transition:all .15s;
+}
+.fchip:hover{border-color:var(--blue);color:var(--blue)}
+.fchip.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.fchip.crit.active{background:var(--red);border-color:var(--red)}
+.fchip.high.active{background:var(--orange);border-color:var(--orange)}
+.fchip.med.active{background:var(--yellow);border-color:var(--yellow);color:#000}
+.fchip.low.active{background:var(--green);border-color:var(--green)}
+
+/* ── Detail panel ── */
+.detail-overlay{
+  position:fixed;inset:0;background:rgba(12,12,15,.7);
+  z-index:200;display:flex;justify-content:flex-end;
+  backdrop-filter:blur(4px);animation:fadeIn .15s ease;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.detail-panel{
+  width:520px;height:100%;background:var(--surface);border-left:1px solid var(--border);
+  overflow-y:auto;display:flex;flex-direction:column;animation:slideIn .2s ease;
+}
+@keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+.dp-header{
+  padding:20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  position:sticky;top:0;background:var(--surface);z-index:1;
+}
+.dp-title{font-size:15px;font-weight:700;line-height:1.3}
+.dp-close{
+  width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  flex-shrink:0;transition:all .15s;
+}
+.dp-close:hover{background:var(--surface3);color:var(--text)}
+.dp-body{padding:20px;display:flex;flex-direction:column;gap:18px;flex:1}
+.dp-section label{
+  display:block;font-size:10px;font-weight:700;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;
+}
+.dp-section p{font-size:13px;color:var(--text);line-height:1.6}
+.code-block{
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r);
+  padding:14px;font-family:var(--mono);font-size:11px;color:#A8B4CC;
+  white-space:pre-wrap;word-break:break-all;line-height:1.7;
+}
+.code-block.fixed{border-color:rgba(0,201,122,.3);color:var(--green)}
+.dp-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.suppress-form{
+  background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);
+  padding:12px;display:flex;flex-direction:column;gap:8px;
+}
+
+/* ── Scan page ── */
+.scan-page-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.scan-tools-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.tool-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
+  padding:16px;border-top:2px solid;
+}
+.tool-name{font-weight:700;font-size:13px;margin-bottom:4px}
+.tool-desc{font-size:11px;color:var(--text2);line-height:1.5}
+
+/* ── History page ── */
+.history-item{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);
+  padding:16px;display:flex;align-items:center;gap:14px;cursor:pointer;
+  transition:border-color .15s;
+}
+.history-item:hover{border-color:var(--blue)}
+.h-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.h-path{font-family:var(--mono);font-size:11px;color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-meta{font-size:11px;color:var(--text3);white-space:nowrap}
+
+/* ── Status bar ── */
+.status-bar{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r);
+  font-size:12px;color:var(--text2);font-family:var(--mono);margin-top:10px;
+}
+.spin{
+  width:14px;height:14px;border:2px solid var(--border2);
+  border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:60px 20px;color:var(--text3)}
+.empty-icon{font-size:36px;margin-bottom:12px;opacity:.5}
+.empty-title{font-size:15px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.empty-sub{font-size:12px}
+
+/* ── Pass/fail badge ── */
+.pass-badge{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 12px;
+  border-radius:20px;font-size:11px;font-weight:700;font-family:var(--mono);
+}
+.pass-badge.pass{background:rgba(0,201,122,.1);color:var(--green);border:1px solid rgba(0,201,122,.3)}
+.pass-badge.fail{background:rgba(255,69,96,.1);color:var(--red);border:1px solid rgba(255,69,96,.3)}
+
+/* ── Diff view ── */
+.diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.diff-label{font-size:10px;font-weight:700;letter-spacing:.06em;margin-bottom:6px;text-transform:uppercase}
+
+/* ── Tag ── */
+.tag{
+  display:inline-block;padding:1px 7px;border-radius:3px;
+  font-size:10px;font-family:var(--mono);border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text3);
+}
+
+/* ── Search ── */
+.search-wrap{position:relative}
+.search-wrap .input{padding-left:32px}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
+
+/* ── Suppressed tab ── */
+.tab-row{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tab{
+  padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;
+  border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--text2);transition:all .15s;
+}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ── Page header ── */
+.page-header{margin-bottom:20px}
+.page-title{font-size:20px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+.page-sub{font-size:12px;color:var(--text2)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+const API = 'http://localhost:8000';
+
+// ── API helper ────────────────────────────────────────────────────────────────
+const api = async (path, opts = {}) => {
+  const res = await fetch(API + path, { headers: {'Content-Type':'application/json'}, ...opts });
+  if (!res.ok) throw new Error(`${res.status}`);
+  return res.json();
+};
+
+// ── Severity helpers ──────────────────────────────────────────────────────────
+const SEV_COLOR = { CRITICAL:'var(--red)', HIGH:'var(--orange)', MEDIUM:'var(--yellow)', LOW:'var(--green)' };
+const SEV_ORDER = { CRITICAL:0, HIGH:1, MEDIUM:2, LOW:3 };
+
+const Chip = ({ s }) => <span className={`chip chip-${s}`}>{s}</span>;
+const ToolChip = ({ t }) => <span className="chip chip-tool">{t}</span>;
+
+// ── Status dot ────────────────────────────────────────────────────────────────
+const DotStatus = ({ counts, scanning, watchActive, watchPath, onOpenWatch }) => {
+  let cls = 'idle', label = 'Not watching';
+  if (scanning) { cls = 'scanning'; label = 'Scanning…'; }
+  else if (watchActive) {
+    if (counts.CRITICAL > 0 || counts.HIGH > 0) { cls = 'danger'; label = `${(counts.CRITICAL||0)+(counts.HIGH||0)} critical/high`; }
+    else if (counts.MEDIUM > 0) { cls = 'warn'; label = `${counts.MEDIUM} medium`; }
+    else { cls = 'clean'; label = 'All clear'; }
+  }
+  return (
+    <div className="watch-status" onClick={onOpenWatch} title={watchActive ? `Watching: ${watchPath}` : 'Click to set up file watcher'}>
+      <div className={`status-dot ${cls}`} />
+      <span className="watch-label">{label}</span>
+      <span style={{fontSize:9,color:'var(--text3)'}}>●</span>
+    </div>
+  );
+};
+
+// ── Stat cards ────────────────────────────────────────────────────────────────
+const StatCards = ({ summary }) => {
+  if (!summary) return null;
+  const cards = [
+    { k:'CRITICAL', label:'Critical', col:'var(--red)'    },
+    { k:'HIGH',     label:'High',     col:'var(--orange)' },
+    { k:'MEDIUM',   label:'Medium',   col:'var(--yellow)' },
+    { k:'LOW',      label:'Low',      col:'var(--green)'  },
+  ];
+  return (
+    <div className="stat-grid">
+      {cards.map(c => (
+        <div key={c.k} className="stat-card">
+          <div className="stat-top-line" style={{background:c.col}} />
+          <div className="stat-num" style={{color:c.col}}>{summary[c.k] ?? 0}</div>
+          <div className="stat-label">{c.label}</div>
+          <div className="stat-sub">{summary.total ? `of ${summary.total} total` : 'no findings'}</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Suppress modal ────────────────────────────────────────────────────────────
+const SuppressModal = ({ finding, onDone, onCancel }) => {
+  const [reason, setReason] = useState('');
+  const submit = async () => {
+    if (!reason.trim()) return;
+    await api('/suppress', { method:'POST', body: JSON.stringify({ finding_id: finding.id, reason }) });
+    onDone();
+  };
+  return (
+    <div className="suppress-form">
+      <div style={{fontSize:12,fontWeight:700,color:'var(--text2)'}}>Mark as accepted risk</div>
+      <input className="input" style={{height:34,fontSize:12}} placeholder="Reason (required)…"
+        value={reason} onChange={e=>setReason(e.target.value)}
+        onKeyDown={e=>e.key==='Enter'&&submit()} autoFocus />
+      <div style={{display:'flex',gap:8}}>
+        <button className="btn btn-danger btn-sm" onClick={submit} disabled={!reason.trim()}>Suppress</button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel}>Cancel</button>
+      </div>
+    </div>
+  );
+};
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+const DetailPanel = ({ finding, onClose, onSuppressed }) => {
+  const [suppressing, setSuppressing] = useState(false);
+  if (!finding) return null;
+  const handleUnsuppress = async () => {
+    await api(`/suppress/${finding.id}`, { method:'DELETE' });
+    onSuppressed();
+  };
+  return (
+    <div className="detail-overlay" onClick={e => e.target===e.currentTarget && onClose()}>
+      <div className="detail-panel">
+        <div className="dp-header">
+          <div>
+            <div className="dp-title">{finding.type}</div>
+            <div className="dp-meta" style={{marginTop:8}}>
+              <Chip s={finding.severity} />
+              <ToolChip t={finding.tool} />
+              {finding.vuln_id && <span className="tag">{finding.vuln_id}</span>}
+              {finding.suppressed===1 && <span className="tag" style={{color:'var(--text3)'}}>suppressed</span>}
+            </div>
+          </div>
+          <button className="dp-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="dp-body">
+          {finding.file && finding.file !== 'N/A' && (
+            <div className="dp-section">
+              <label>Location</label>
+              <p style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--text2)'}}>
+                {finding.file}{finding.line > 0 ? <span>:<span style={{color:'var(--blue)'}}>{finding.line}</span></span> : ''}
+              </p>
+            </div>
+          )}
+
+          <div className="dp-section">
+            <label>Description</label>
+            <p>{finding.description}</p>
+          </div>
+
+          {finding.impact && (
+            <div className="dp-section">
+              <label>Impact</label>
+              <p>{finding.impact}</p>
+            </div>
+          )}
+
+          {(finding.code_snippet || finding.fixed_code) && (
+            <div className="dp-section">
+              <label>Code</label>
+              {finding.code_snippet && finding.fixed_code ? (
+                <div className="diff-grid">
+                  <div>
+                    <div className="diff-label" style={{color:'var(--red)'}}>⚠ Vulnerable</div>
+                    <div className="code-block">{finding.code_snippet}</div>
+                  </div>
+                  <div>
+                    <div className="diff-label" style={{color:'var(--green)'}}>✓ Fixed</div>
+                    <div className="code-block fixed">{finding.fixed_code}</div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {finding.code_snippet && <div className="code-block">{finding.code_snippet}</div>}
+                  {finding.fixed_code && <div className="code-block fixed" style={{marginTop:8}}>{finding.fixed_code}</div>}
+                </>
+              )}
+            </div>
+          )}
+
+          {finding.fix_suggestion && (
+            <div className="dp-section">
+              <label>Fix</label>
+              <p>{finding.fix_suggestion}</p>
+            </div>
+          )}
+
+          {finding.suppress_reason && (
+            <div className="dp-section">
+              <label>Suppression reason</label>
+              <p style={{color:'var(--text2)',fontStyle:'italic'}}>{finding.suppress_reason}</p>
+            </div>
+          )}
+
+          <div style={{marginTop:'auto',paddingTop:8,borderTop:'1px solid var(--border)',display:'flex',gap:8,flexWrap:'wrap'}}>
+            {finding.fixed_code && (
+              <button className="btn btn-ghost btn-sm" onClick={()=>navigator.clipboard?.writeText(finding.fixed_code)}>
+                Copy fix
+              </button>
+            )}
+            {finding.suppressed===1 ? (
+              <button className="btn btn-ghost btn-sm" onClick={handleUnsuppress}>Unsuppress</button>
+            ) : (
+              <button className="btn btn-ghost btn-sm" onClick={()=>setSuppressing(v=>!v)}>
+                {suppressing ? 'Cancel' : 'Mark as accepted risk'}
+              </button>
+            )}
+          </div>
+
+          {suppressing && !finding.suppressed && (
+            <SuppressModal finding={finding} onDone={()=>{setSuppressing(false);onSuppressed();}} onCancel={()=>setSuppressing(false)} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Findings table ────────────────────────────────────────────────────────────
+const FindingsTable = ({ findings, onRefresh }) => {
+  const [selected, setSelected]   = useState(null);
+  const [sevFilter, setSevFilter] = useState('ALL');
+  const [tab, setTab]             = useState('active');   // active | suppressed
+  const [toolFilter, setToolFilter] = useState('ALL');
+  const [search, setSearch]       = useState('');
+  const [sort, setSort]           = useState({ col:'severity', dir:1 });
+
+  const tools = ['ALL', ...new Set(findings.map(f=>f.tool))];
+  const isActive = f => f.suppressed !== 1;
+
+  const filtered = findings
+    .filter(f => tab==='suppressed' ? f.suppressed===1 : isActive(f))
+    .filter(f => sevFilter==='ALL' || f.severity===sevFilter)
+    .filter(f => toolFilter==='ALL' || f.tool===toolFilter)
+    .filter(f => !search || [f.type,f.file,f.description].some(x=>x?.toLowerCase().includes(search.toLowerCase())))
+    .sort((a,b) => {
+      if (sort.col==='severity') return (SEV_ORDER[a.severity]-SEV_ORDER[b.severity])*sort.dir;
+      return String(a[sort.col]).localeCompare(String(b[sort.col]))*sort.dir;
+    });
+
+  const toggleSort = col => setSort(s=>({col,dir:s.col===col?-s.dir:1}));
+  const sortArrow = col => sort.col===col ? (sort.dir===1?'↑':'↓') : '';
+
+  const activeCount = findings.filter(isActive).length;
+  const suppCount   = findings.filter(f=>f.suppressed===1).length;
+
+  return (
+    <>
+      <div className="tab-row">
+        <div className={`tab ${tab==='active'?'active':''}`} onClick={()=>setTab('active')}>
+          Active ({activeCount})
+        </div>
+        <div className={`tab ${tab==='suppressed'?'active':''}`} onClick={()=>setTab('suppressed')}>
+          Suppressed ({suppCount})
+        </div>
+      </div>
+
+      <div className="table-wrap">
+        <div className="table-header">
+          <span className="table-header-title">
+            {filtered.length} finding{filtered.length!==1?'s':''}
+          </span>
+          <div className="filter-row">
+            {['ALL','CRITICAL','HIGH','MEDIUM','LOW'].map(s=>(
+              <span key={s}
+                className={`fchip ${s.toLowerCase()==='medium'?'med':s.toLowerCase()} ${sevFilter===s?'active':''}`}
+                onClick={()=>setSevFilter(s)}>{s}</span>
+            ))}
+          </div>
+          <div className="search-wrap" style={{width:180}}>
+            <span className="search-icon">⌕</span>
+            <input className="input" placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)} />
+          </div>
+          <select className="input" style={{width:120,fontFamily:'var(--sans)',cursor:'pointer'}}
+            value={toolFilter} onChange={e=>setToolFilter(e.target.value)}>
+            {tools.map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+
+        {filtered.length===0 ? (
+          <div className="empty" style={{padding:'40px 20px'}}>
+            <div className="empty-icon">🔍</div>
+            <div className="empty-title">{tab==='suppressed'?'No suppressed findings':'No findings match filters'}</div>
+          </div>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th onClick={()=>toggleSort('severity')}>Severity {sortArrow('severity')}</th>
+                <th onClick={()=>toggleSort('type')}>Type {sortArrow('type')}</th>
+                <th onClick={()=>toggleSort('file')}>File {sortArrow('file')}</th>
+                <th>Tool</th>
+                <th>Line</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(f=>(
+                <tr key={f.id} onClick={()=>setSelected(f)} className={f.suppressed===1?'suppressed-row':''}>
+                  <td><Chip s={f.severity}/></td>
+                  <td className="td-type">{f.type}</td>
+                  <td className="td-file" title={f.file}>{f.file}</td>
+                  <td><ToolChip t={f.tool}/></td>
+                  <td className="td-line">{f.line>0?f.line:'—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {selected && (
+        <DetailPanel
+          finding={selected}
+          onClose={()=>setSelected(null)}
+          onSuppressed={()=>{ setSelected(null); onRefresh(); }}
+        />
+      )}
+    </>
+  );
+};
+
+// ── Results page ──────────────────────────────────────────────────────────────
+const ResultsPage = ({ scanId }) => {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(false);
+  const pollRef               = useRef(null);
+
+  const load = useCallback(async () => {
+    if (!scanId) return;
+    try {
+      const d = await api(`/scan/${scanId}`);
+      setData(d);
+      if (d.status==='running'||d.status==='queued') {
+        pollRef.current = setTimeout(load, 2000);
+      }
+    } catch {}
+  }, [scanId]);
+
+  useEffect(() => {
+    setData(null);
+    clearTimeout(pollRef.current);
+    load();
+    return ()=>clearTimeout(pollRef.current);
+  }, [scanId]);
+
+  if (!scanId) return (
+    <div className="empty">
+      <div className="empty-icon">📂</div>
+      <div className="empty-title">No scan selected</div>
+      <div className="empty-sub">Run a scan or pick one from History</div>
+    </div>
+  );
+
+  if (!data) return <div className="empty"><div className="spin" style={{margin:'0 auto'}}/></div>;
+
+  const scanning = data.status==='running'||data.status==='queued';
+
+  return (
+    <div>
+      <div className="page-header" style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+        <div>
+          <div className="page-title">Scan Results</div>
+          <div className="page-sub" style={{fontFamily:'var(--mono)'}}>{data.scan_id?.slice(0,8)}… · {data.name||data.path}</div>
+        </div>
+        <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+          {!scanning && data.summary && (
+            <span className={`pass-badge ${data.pass?'pass':'fail'}`}>
+              {data.pass?'✓ PASS':'✗ FAIL'}
+            </span>
+          )}
+          <span style={{fontSize:11,color:scanning?'var(--blue)':data.status?.startsWith('error')?'var(--red)':'var(--green)',fontFamily:'var(--mono)'}}>
+            ● {data.status}
+          </span>
+          <button className="btn btn-ghost btn-sm" onClick={load}>↻ Refresh</button>
+        </div>
+      </div>
+
+      {scanning && (
+        <div className="status-bar" style={{marginBottom:16}}>
+          <div className="spin"/><span>Scanners running — auto-refreshing every 2s…</span>
+        </div>
+      )}
+
+      <StatCards summary={data.summary}/>
+
+      {(data.findings||[]).length>0
+        ? <FindingsTable findings={data.findings} onRefresh={load}/>
+        : !scanning && (
+          <div className="empty">
+            <div className="empty-icon">✅</div>
+            <div className="empty-title">No findings detected</div>
+            <div className="empty-sub">This project is clean.</div>
+          </div>
+        )
+      }
+    </div>
+  );
+};
+
+// ── Scan page ─────────────────────────────────────────────────────────────────
+const ScanPage = ({ onDone }) => {
+  const [path, setPath]       = useState('');
+  const [status, setStatus]   = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const run = async () => {
+    if (!path.trim()) return;
+    setLoading(true); setStatus('Submitting…');
+    try {
+      const { scan_id } = await api('/scan', { method:'POST', body:JSON.stringify({path:path.trim()}) });
+      setStatus(`Started — scan ID: ${scan_id}`);
+      onDone(scan_id);
+    } catch(e) {
+      setStatus(`Error: ${e.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div className="page-title">New Scan</div>
+        <div className="page-sub">Scan any local project directory</div>
+      </div>
+
+      <div className="card" style={{marginBottom:16}}>
+        <div style={{fontWeight:700,marginBottom:12}}>Project Path</div>
+        <div style={{display:'flex',gap:8}}>
+          <input className="input" placeholder="/absolute/path/to/project"
+            value={path} onChange={e=>setPath(e.target.value)}
+            onKeyDown={e=>e.key==='Enter'&&run()} />
+          <button className="btn btn-primary" onClick={run} disabled={loading||!path.trim()}>
+            {loading?<><div className="spin" style={{width:12,height:12,borderWidth:1.5}}/>Scanning…</>:'▶ Run Scan'}
+          </button>
+        </div>
+        {status && (
+          <div className="status-bar">
+            {loading&&<div className="spin"/>}
+            <span>{status}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="scan-tools-row">
+        {[
+          {name:'OSV-Scanner',col:'var(--red)',   desc:'CVEs in requirements.txt and package.json via Google OSV, GHSA, NVD databases.'},
+          {name:'Semgrep',    col:'var(--orange)',desc:'11 custom rules: hardcoded secrets, weak crypto, SSL bypass, debug mode, unsafe YAML, JWT none.'},
+          {name:'Bandit',     col:'var(--blue)',  desc:'Python AST: exec/eval usage, subprocess shell injection, insecure file handling.'},
+        ].map(t=>(
+          <div key={t.name} className="tool-card" style={{borderTopColor:t.col}}>
+            <div className="tool-name" style={{color:t.col}}>{t.name}</div>
+            <div className="tool-desc">{t.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="card-sm" style={{background:'rgba(255,138,61,.05)',borderColor:'rgba(255,138,61,.2)'}}>
+        <div style={{fontSize:12,fontWeight:700,color:'var(--orange)',marginBottom:6}}>⚡ Optional: Full CVE scanning</div>
+        <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text2)'}}>
+          go install github.com/google/osv-scanner/cmd/osv-scanner@latest
+        </div>
+        <div style={{fontSize:11,color:'var(--text3)',marginTop:6}}>Requires Go 1.21+. Bandit + Semgrep install automatically via pip.</div>
+      </div>
+    </div>
+  );
+};
+
+// ── History page ──────────────────────────────────────────────────────────────
+const HistoryPage = ({ onSelect }) => {
+  const [scans, setScans] = useState([]);
+  useEffect(()=>{
+    const load = ()=>api('/scans').then(setScans).catch(()=>{});
+    load();
+    const i = setInterval(load, 5000);
+    return ()=>clearInterval(i);
+  },[]);
+
+  const dot = s => {
+    if (s==='complete') return 'var(--green)';
+    if (s==='running'||s==='queued') return 'var(--blue)';
+    if (s?.startsWith('error')) return 'var(--red)';
+    return 'var(--text3)';
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div className="page-title">Scan History</div>
+        <div className="page-sub">Click any scan to view results</div>
+      </div>
+      {scans.length===0
+        ? <div className="empty"><div className="empty-icon">📋</div><div className="empty-title">No scans yet</div><div className="empty-sub">Run your first scan</div></div>
+        : <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {scans.map(s=>(
+              <div key={s.scan_id} className="history-item" onClick={()=>onSelect(s.scan_id)}>
+                <div className="h-dot" style={{background:dot(s.status)}}/>
+                <div className="h-path" title={s.path}>{s.name||s.path}</div>
+                <div className="h-meta">{s.created_at}</div>
+                <span className="tag">{s.status}</span>
+              </div>
+            ))}
+          </div>
+      }
+    </div>
+  );
+};
+
+// ── Watcher page ──────────────────────────────────────────────────────────────
+const WatcherPage = ({ onWatchChange }) => {
+  const [path, setPath]     = useState('');
+  const [active, setActive] = useState(false);
+  const [watching, setWatching] = useState('');
+  const [status, setStatus] = useState('');
+
+  useEffect(()=>{
+    api('/watch').then(d=>{
+      setActive(d.active);
+      if(d.path) setWatching(d.path);
+    }).catch(()=>{});
+  },[]);
+
+  const start = async()=>{
+    if(!path.trim())return;
+    try{
+      await api('/watch',{method:'POST',body:JSON.stringify({path:path.trim()})});
+      setActive(true); setWatching(path.trim());
+      setStatus('Watcher started.');
+      onWatchChange(path.trim());
+    }catch(e){ setStatus(`Error: ${e.message}`); }
+  };
+  const stop = async()=>{
+    try{
+      await api('/watch',{method:'DELETE'});
+      setActive(false); setWatching('');
+      setStatus('Watcher stopped.');
+      onWatchChange('');
+    }catch(e){ setStatus(`Error: ${e.message}`); }
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div className="page-title">File Watcher</div>
+        <div className="page-sub">Auto-scan when dependency files change</div>
+      </div>
+
+      <div className="card" style={{marginBottom:16}}>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
+          <div className={`status-dot ${active?'scanning':'idle'}`}/>
+          <div>
+            <div style={{fontWeight:700,fontSize:13}}>{active?'Watching':'Inactive'}</div>
+            {watching&&<div style={{fontSize:11,fontFamily:'var(--mono)',color:'var(--text2)',marginTop:2}}>{watching}</div>}
+          </div>
+        </div>
+
+        {!active ? (
+          <div style={{display:'flex',gap:8}}>
+            <input className="input" placeholder="/path/to/project" value={path} onChange={e=>setPath(e.target.value)} onKeyDown={e=>e.key==='Enter'&&start()}/>
+            <button className="btn btn-primary" onClick={start} disabled={!path.trim()}>Start Watching</button>
+          </div>
+        ) : (
+          <button className="btn btn-danger" onClick={stop}>■ Stop Watcher</button>
+        )}
+        {status&&<div style={{marginTop:10,fontSize:12,color:'var(--text2)',fontFamily:'var(--mono)'}}>{status}</div>}
+      </div>
+
+      <div className="card-sm">
+        <div style={{fontWeight:700,marginBottom:8,fontSize:13}}>How it works</div>
+        <div style={{fontSize:12,color:'var(--text2)',lineHeight:1.7}}>
+          SecureDep polls your project every 3 seconds. When it detects a change in
+          <span style={{fontFamily:'var(--mono)',color:'var(--cyan)'}}> requirements.txt, package.json, Pipfile, </span>
+          or <span style={{fontFamily:'var(--mono)',color:'var(--cyan)'}}>pyproject.toml</span>, it automatically
+          triggers a full scan. The status dot in the sidebar reflects the result in real time:
+        </div>
+        <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:8}}>
+          {[
+            {col:'var(--green)',label:'Green — clean, no HIGH/CRITICAL findings'},
+            {col:'var(--yellow)',label:'Yellow — MEDIUM findings present'},
+            {col:'var(--red)',label:'Red — HIGH or CRITICAL found'},
+            {col:'var(--blue)',label:'Blue (pulsing) — scan in progress'},
+          ].map(d=>(
+            <div key={d.col} style={{display:'flex',alignItems:'center',gap:10,fontSize:12}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:d.col,flexShrink:0}}/>
+              <span style={{color:'var(--text2)'}}>{d.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── App ───────────────────────────────────────────────────────────────────────
+const App = () => {
+  const [page, setPage]         = useState('scan');
+  const [scanId, setScanId]     = useState(null);
+  const [watchPath, setWatchPath] = useState('');
+  const [watchActive, setWatchActive] = useState(false);
+  const [latestSummary, setLatestSummary] = useState({CRITICAL:0,HIGH:0,MEDIUM:0,LOW:0});
+  const [scanning, setScanning] = useState(false);
+
+  // Poll latest scan for status dot
+  useEffect(()=>{
+    const tick = ()=>{
+      api('/scans/latest').then(s=>{
+        if(!s.scan_id) return;
+        const running = s.status==='running'||s.status==='queued';
+        setScanning(running);
+        if(s.status==='complete') {
+          api(`/scan/${s.scan_id}/summary`).then(d=>setLatestSummary(d.summary||{})).catch(()=>{});
+        }
+      }).catch(()=>{});
+      api('/watch').then(d=>{setWatchActive(d.active);if(d.path)setWatchPath(d.path);}).catch(()=>{});
+    };
+    tick();
+    const i = setInterval(tick, 4000);
+    return ()=>clearInterval(i);
+  },[]);
+
+  const handleScanDone = id => { setScanId(id); setPage('results'); };
+  const handleSelectScan = id => { setScanId(id); setPage('results'); };
+
+  const nav = [
+    {id:'scan',    icon:'＋', label:'New Scan'   },
+    {id:'results', icon:'◈',  label:'Results'    },
+    {id:'history', icon:'◎',  label:'History'    },
+    {id:'watcher', icon:'⬡',  label:'Watcher'    },
+  ];
+
+  const pageTitle = {
+    scan:'New Scan', results:'Scan Results', history:'History', watcher:'File Watcher'
+  }[page];
+
+  return (
+    <div id="root" style={{display:'flex',height:'100vh',overflow:'hidden'}}>
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div className="logo-icon">SD</div>
+          SecureDep
+        </div>
+        <nav className="sidebar-nav">
+          {nav.map(n=>(
+            <button key={n.id} className={`nav-btn ${page===n.id?'active':''}`} onClick={()=>setPage(n.id)}>
+              <span className="nav-icon">{n.icon}</span>{n.label}
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <DotStatus
+            counts={latestSummary} scanning={scanning}
+            watchActive={watchActive} watchPath={watchPath}
+            onOpenWatch={()=>setPage('watcher')}
+          />
+          <div style={{marginTop:10,fontSize:10,color:'var(--text3)',fontFamily:'var(--mono)',textAlign:'center'}}>
+            v2.0 · PSB Hackathon 2026
+          </div>
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className="main">
+        <div className="topbar">
+          <span className="topbar-title">{pageTitle}</span>
+          {scanId && page==='results' && (
+            <span className="topbar-sub">{scanId.slice(0,8)}…</span>
+          )}
+        </div>
+        <div className="content">
+          {page==='scan'    && <ScanPage    onDone={handleScanDone}/>}
+          {page==='results' && <ResultsPage scanId={scanId}/>}
+          {page==='history' && <HistoryPage onSelect={handleSelectScan}/>}
+          {page==='watcher' && <WatcherPage onWatchChange={p=>{setWatchPath(p);setWatchActive(!!p);}}/>}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

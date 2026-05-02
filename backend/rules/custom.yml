@@ -1,0 +1,148 @@
+rules:
+
+  - id: hardcoded-password
+    patterns:
+      - pattern: $VAR = "..."
+      - metavariable-regex:
+          metavariable: $VAR
+          regex: (?i)(password|passwd|pwd|secret|api_key|apikey|token|auth_key|access_key)
+    message: "Hardcoded credential in variable '$VAR'. Move to environment variables."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      type: Hardcoded Secret
+      impact: Credentials in source code can be leaked via version control or logs.
+      fix: "Use os.getenv('SECRET_KEY') or a secrets manager."
+      fixed_code: "import os\n$VAR = os.getenv('SECRET_KEY')"
+
+  - id: weak-hash-md5
+    patterns:
+      - pattern: hashlib.md5(...)
+    message: "MD5 is cryptographically broken. Use SHA-256 or SHA-3."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      type: Weak Cryptography
+      impact: MD5 collisions are trivially constructible — not safe for security use.
+      fix: "Replace with hashlib.sha256()"
+      fixed_code: "hashlib.sha256(data).hexdigest()"
+
+  - id: weak-hash-sha1
+    patterns:
+      - pattern: hashlib.sha1(...)
+    message: "SHA-1 is deprecated and weak for security purposes."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      type: Weak Cryptography
+      impact: SHA-1 is vulnerable to collision attacks since 2017.
+      fix: "Replace with hashlib.sha256()"
+      fixed_code: "hashlib.sha256(data).hexdigest()"
+
+  - id: ssl-verify-disabled
+    patterns:
+      - pattern: requests.get(..., verify=False, ...)
+      - pattern: requests.post(..., verify=False, ...)
+      - pattern: requests.put(..., verify=False, ...)
+      - pattern: requests.request(..., verify=False, ...)
+    message: "SSL certificate verification disabled — MITM attacks possible."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      type: Disabled SSL Verification
+      impact: Attacker can intercept and modify HTTPS traffic undetected.
+      fix: "Remove verify=False or point to a custom CA bundle."
+      fixed_code: "requests.get(url, verify=True)"
+
+  - id: debug-mode-enabled
+    patterns:
+      - pattern: DEBUG = True
+      - pattern: app.run(..., debug=True, ...)
+      - pattern: app.debug = True
+    message: "Debug mode is enabled — never deploy with debug=True."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      type: Debug Mode Enabled
+      impact: Exposes stack traces, internal config, and interactive debugger to users.
+      fix: "Set DEBUG = False or read from environment."
+      fixed_code: "DEBUG = os.environ.get('DEBUG', 'False') == 'True'"
+
+  - id: insecure-random
+    patterns:
+      - pattern: random.random()
+      - pattern: random.randint(...)
+      - pattern: random.choice(...)
+      - pattern: random.randrange(...)
+    message: "Non-cryptographic random used — predictable in security context."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      type: Insecure Randomness
+      impact: Predictable values can be exploited to bypass tokens or session IDs.
+      fix: "Use the secrets module for security-sensitive randomness."
+      fixed_code: "import secrets\ntoken = secrets.token_hex(32)"
+
+  - id: yaml-unsafe-load
+    pattern: yaml.load($DATA)
+    message: "yaml.load() without Loader allows arbitrary code execution."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      type: Unsafe Deserialization
+      impact: Crafted YAML input can execute arbitrary Python code.
+      fix: "Use yaml.safe_load() instead."
+      fixed_code: "yaml.safe_load(data)"
+
+  - id: jwt-none-algorithm
+    patterns:
+      - pattern: jwt.decode($T, ..., algorithms=["none"], ...)
+      - pattern: jwt.decode($T, ..., algorithms=[..., "none", ...], ...)
+    message: "JWT 'none' algorithm accepted — signature verification bypassed."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      type: JWT Algorithm Confusion
+      impact: Unsigned JWTs accepted — complete authentication bypass.
+      fix: "Remove 'none' from algorithms list."
+      fixed_code: "jwt.decode(token, SECRET, algorithms=['HS256'])"
+
+  - id: cors-wildcard
+    patterns:
+      - pattern: origins="*"
+      - pattern: allow_origins=["*"]
+      - pattern: Access-Control-Allow-Origin = "*"
+    message: "CORS wildcard allows any origin to make credentialed requests."
+    languages: [python]
+    severity: WARNING
+    metadata:
+      type: Insecure CORS Policy
+      impact: Any website can make authenticated API requests on behalf of logged-in users.
+      fix: "Restrict to known origins."
+      fixed_code: "allow_origins=['https://yourdomain.com']"
+
+  - id: pickle-unsafe
+    patterns:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+    message: "pickle.loads() on untrusted data allows remote code execution."
+    languages: [python]
+    severity: ERROR
+    metadata:
+      type: Unsafe Deserialization
+      impact: Arbitrary code execution from malicious pickle payloads.
+      fix: "Use JSON or MessagePack for untrusted data."
+      fixed_code: "json.loads(data)"
+
+  - id: hardcoded-ip
+    patterns:
+      - pattern: host = "..."
+      - pattern: HOST = "..."
+    message: "Hardcoded host/IP detected — use environment variables."
+    languages: [python]
+    severity: INFO
+    metadata:
+      type: Hardcoded Configuration
+      impact: Hardcoded hosts make deployment inflexible and may expose infrastructure details.
+      fix: "Read from environment: os.getenv('SERVICE_HOST', 'localhost')"
+      fixed_code: "host = os.getenv('SERVICE_HOST', 'localhost')"

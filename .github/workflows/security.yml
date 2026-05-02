@@ -1,0 +1,90 @@
+name: SecureDep Security Gate
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+  push:
+    branches: [main, master]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install scanners
+        run: |
+          pip install bandit semgrep
+          curl -sL https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64 \
+            -o /usr/local/bin/osv-scanner && chmod +x /usr/local/bin/osv-scanner
+
+      - name: Run Bandit
+        run: bandit -r . -f json -o bandit.json -q || true
+
+      - name: Run Semgrep
+        run: semgrep --config .github/securedep-rules.yml --json -o semgrep.json . || true
+
+      - name: Run OSV-Scanner
+        run: osv-scanner --format json . > osv.json 2>/dev/null || true
+
+      - name: Evaluate findings
+        run: |
+          python3 << 'EOF'
+          import json, sys
+
+          CRITICAL = HIGH = 0
+          lines = []
+
+          for src, file in [("Bandit","bandit.json"),("Semgrep","semgrep.json"),("OSV","osv.json")]:
+            try:
+              d = json.load(open(file))
+            except:
+              continue
+            if src == "Bandit":
+              for r in d.get("results",[]):
+                s = r.get("issue_severity","LOW")
+                if s=="HIGH": HIGH+=1
+                lines.append(f"[{s}] Bandit: {r.get('issue_text','')} ({r.get('filename','')}:{r.get('line_number','')})")
+            elif src == "Semgrep":
+              sm = {"ERROR":"HIGH","WARNING":"MEDIUM","INFO":"LOW"}
+              for r in d.get("results",[]):
+                s = sm.get(r.get("extra",{}).get("severity","INFO"),"LOW")
+                if s=="HIGH": HIGH+=1
+                lines.append(f"[{s}] Semgrep: {r.get('extra',{}).get('message','')} ({r.get('path','')}:{r.get('start',{}).get('line','')})")
+            elif src == "OSV":
+              for res in d.get("results",[]):
+                for pkg in res.get("packages",[]):
+                  for v in pkg.get("vulnerabilities",[]):
+                    s = v.get("database_specific",{}).get("severity","MEDIUM")
+                    if s=="CRITICAL": CRITICAL+=1
+                    elif s=="HIGH": HIGH+=1
+                    lines.append(f"[{s}] OSV: {v.get('id','')} in {pkg.get('package',{}).get('name','?')}")
+
+          print("\n" + "="*60)
+          print("SecureDep Security Gate")
+          print("="*60)
+          print(f"Critical: {CRITICAL}  High: {HIGH}  Total findings: {len(lines)}")
+          print("="*60)
+          for l in lines[:20]: print(l)
+          if len(lines)>20: print(f"...and {len(lines)-20} more")
+          print("="*60 + "\n")
+
+          if CRITICAL:
+            print(f"FAILED: {CRITICAL} CRITICAL finding(s)"); sys.exit(1)
+          if HIGH:
+            print(f"FAILED: {HIGH} HIGH finding(s)"); sys.exit(1)
+          print("PASSED: No critical or high findings.")
+          EOF
+        env:
+          FAIL_ON_CRITICAL: "1"
+          FAIL_ON_HIGH: "1"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: securedep-reports
+          path: "*.json"
