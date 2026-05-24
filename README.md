@@ -7,11 +7,11 @@ Static security analysis platform — OSV + Semgrep + Bandit + React dashboard +
 ## Deploy in 2 commands
 
 ```bash
-cd securedep_v2
+cd SecureDep
 bash start.sh
 ```
 
-Then open `frontend/index.html` in your browser. Done.
+Then open `http://127.0.0.1:8000/` in your browser. Done.
 
 ---
 
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 
 # 3. Open frontend (no build step)
-open ../frontend/index.html
+open ../http://127.0.0.1:8000/
 ```
 
 ---
