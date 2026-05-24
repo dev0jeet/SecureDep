@@ -30,7 +30,7 @@ command -v bandit      &>/dev/null && echo "     ✅ bandit"      || echo "     
 
 echo ""
 echo "  🚀 Starting API → http://localhost:8000"
-echo "  📊 Open dashboard → http://localhost:8000"
+echo "  📊 Open dashboard → http://127.0.0.1:8000"
 echo "  📖 API docs → http://localhost:8000/docs"
 echo ""
 echo "  ⚡ The dashboard is served directly from the API."
